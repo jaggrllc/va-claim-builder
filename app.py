@@ -7,236 +7,225 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import io
 
-# 1. Setup the webpage layout
-st.set_page_config(page_title="Vetted VA Claim Builder", page_icon="🇺🇸", layout="wide")
-st.title("🇺🇸 Veteran VA Claim Organizer & Evidence Vet")
-st.write("Leveraging live web search and OpenAI deep reasoning to build a sound, researched foundation for your VA claim file.")
+st.set_page_config(page_title="VA Claim Organizer", page_icon="🇺🇸", layout="wide")
+st.title("🇺🇸 Veteran VA Claim Organizer & Evidence Helper")
+st.warning("""
+**IMPORTANT DISCLAIMER**  
+This is a self-help organizer only. It is **not** legal advice, medical advice, or an accredited representative.  
+It does **not** file claims with the VA.  
+Always verify information and consider working with a free Veterans Service Officer (VSO) or accredited attorney.  
+File official claims at [VA.gov](https://www.va.gov/disability/file-disability-claim-form-21-526ez/).
+""")
 
-# --- Privacy Control Center ---
-st.markdown("### 🔒 Privacy Control Center")
+# Privacy
 privacy_mode = st.toggle(
-    "Activate Anonymous Download & Data-Wipe Mode",
+    "Privacy mode (clear sensitive data after PDF generation)",
     value=True,
-    help="When active, all input text and checkbox states are completely destroyed from the server memory immediately after the PDF is built."
+    help="Clears the generated report from session after you download or clear it. Closing the browser tab also clears everything."
 )
 if privacy_mode:
-    st.info("🛡️ Privacy Safe-Mode is Active. Your data will be deleted from memory as soon as processing completes.")
+    st.info("Privacy mode on. Sensitive session data can be cleared after generation.")
 
-# 2. Securely handle API Keys from Streamlit Secrets
+# API keys
 if "openai" in st.secrets and "serpapi" in st.secrets:
     openai_key = st.secrets["openai"]["api_key"]
     serpapi_key = st.secrets["serpapi"]["api_key"]
 else:
-    st.sidebar.markdown("### 🔑 API Authentication")
-    openai_key = st.sidebar.text_input("Enter OpenAI API Key", type="password")
-    serpapi_key = st.sidebar.text_input("Enter SerpAPI Key", type="password")
+    st.sidebar.header("API Keys (or use Streamlit secrets)")
+    openai_key = st.sidebar.text_input("OpenAI API Key", type="password")
+    serpapi_key = st.sidebar.text_input("SerpAPI Key", type="password")
 
-# 3. Dynamic Claim Type Selection
+# Claim type
 claim_type = st.selectbox(
-    "1. What type of disability or condition is this claim for?",
+    "1. Condition / claim type",
     [
         "Mental Health (PTSD, Anxiety, Depression)",
         "Hearing (Tinnitus, Hearing Loss)",
-        "Musculoskeletal (Back, Neck, Hip, Knee, Joint Pain/Injuries)",
-        "Respiratory (Asthma, Sleep Apnea/OSA, COPD, Bronchitis, Pneumonia, Toxic Exposure)",
-        "Gastrointestinal (Acid Reflux/GERD, IBS, Celiac Disease, Stomach/Digestive)",
-        "Podiatry / Foot Conditions (Flat Feet/Pes Planus, Plantar Fasciitis, Bunions)",
-        "Neurological Conditions (Migraines/Headaches, Sciatica, Radiculopathy)",
-        "Skin or Dermatology Conditions (Eczema, Psoriasis, Scars/Burns)",
+        "Musculoskeletal (Back, Neck, Hip, Knee, Joints)",
+        "Respiratory (Asthma, Sleep Apnea, COPD, Toxic Exposure)",
+        "Gastrointestinal (GERD, IBS, etc.)",
+        "Podiatry / Foot Conditions",
+        "Neurological (Migraines, Sciatica, Radiculopathy)",
+        "Skin / Dermatology",
         "Other / Not Listed"
     ]
 )
-
 if claim_type == "Other / Not Listed":
-    custom_claim = st.text_input("Please specify your condition:", placeholder="e.g., Chronic Fatigue Syndrome")
-    focused_condition = custom_claim if custom_claim else "unspecified condition"
+    focused_condition = st.text_input("Specify condition", placeholder="e.g., Chronic Fatigue Syndrome") or "unspecified condition"
 else:
     focused_condition = claim_type
 
-# --- Service Background Sub-section ---
-st.markdown("### 🪖 Military Background")
-col_branch, col_year = st.columns(2)
-with col_branch:
-    service_branch = st.text_input("Service Branch:", placeholder="e.g., Army, Navy, Air Force, Marines")
-with col_year:
-    discharge_year = st.text_input("Discharge Year:", placeholder="e.g., 2018")
+# Military background
+st.subheader("Military Background")
+col1, col2 = st.columns(2)
+service_branch = col1.text_input("Service Branch", placeholder="Army, Navy, Air Force, Marines, Coast Guard, Space Force")
+discharge_year = col2.text_input("Discharge Year", placeholder="e.g. 2018")
 
-# --- Guided Multiple-Choice Questions ---
-st.markdown("### 📋 Guided Claim Checklist")
-q_diagnosed = st.radio("2. Have you been officially diagnosed with this condition by a doctor?", ["Yes, I have an official medical diagnosis.", "No, but I have active symptoms.", "I am currently scheduling an appointment to get evaluated."])
-q_service_event = st.radio("3. Did a specific event, injury, or exposure cause this condition during military service?", ["Yes, it started due to a specific incident/deployment.", "Yes, it developed gradually over time while serving.", "No, but my military service made an existing pre-war condition worse."])
-q_records = st.radio("4. Do you have physical copies of medical records or incident reports from your time in service?", ["Yes, I have military medical/service records showing this.", "No, but the VA can pull my records.", "No, I plan on using Buddy Statements / personal journals to help prove it."])
-q_continuity = st.radio("5. Have you suffered from or been treated for this condition continuously since leaving?", ["Yes, it has been a constant, ongoing problem.", "It comes and goes in flare-ups, but has never fully gone away.", "No, it just started becoming a serious problem recently."])
+# Checklist
+st.subheader("Guided Checklist")
+q_diagnosed = st.radio("Official diagnosis by a doctor?", ["Yes", "No, but symptoms present", "Scheduling evaluation"])
+q_service_event = st.radio("In-service event / exposure / aggravation?", ["Specific incident/deployment", "Gradual onset while serving", "Aggravation of pre-existing condition", "Unsure / none identified"])
+q_records = st.radio("Service medical / incident records?", ["Yes, I have them", "VA can pull them", "Relying on buddy statements / journals"])
+q_continuity = st.radio("Continuity since discharge?", ["Constant ongoing problem", "Flare-ups but never fully gone", "Recent onset / worsening"])
 
-# 4. Narrative Story Text Box
-st.markdown("### ✍️ Your Personal Story")
-veteran_story = st.text_area(label=f"Tell your story regarding your {focused_condition} in your own words:", placeholder="Describe the context of how it happened, what your military job was, and exactly how this limits your ability to work or enjoy daily life today...", height=150)
+# Narrative
+veteran_story = st.text_area(
+    f"Your personal story about {focused_condition}",
+    placeholder="Describe what happened in service, your job/MOS, symptoms then and now, and how it limits work or daily life...",
+    height=160
+)
 
-# Helper function to gather peer-reviewed medical data & 38 CFR info dynamically
-def search_va_evidence(condition):
-    if not serpapi_key:
-        return "No SerpAPI key provided. Skipping live search validation."
-    
-    query = f"VA disability rating criteria 38 CFR {condition} medical nexus studies"
-    url = f"https://serpapi.com{requests.utils.quote(query)}&hl=en&gl=us&api_key={serpapi_key}"
-    
+def search_va_evidence(condition: str, api_key: str) -> str:
+    if not api_key:
+        return "No SerpAPI key — skipping live search."
+    params = {
+        "engine": "google",
+        "q": f"VA disability rating criteria 38 CFR {condition} medical nexus",
+        "hl": "en",
+        "gl": "us",
+        "api_key": api_key,
+        "num": 5
+    }
     try:
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        search_snippets = []
-        
-        if "organic_results" in data:
-            for result in data["organic_results"][:4]:
-                title = result.get("title", "No Title")
-                snippet = result.get("snippet", "No Snippet")
-                link = result.get("link", "#")
-                search_snippets.append(f"- **{title}**: {snippet} (Source: {link})")
-        return "\n".join(search_snippets) if search_snippets else "No relevant public VA evidence found online."
+        r = requests.get("https://serpapi.com/search.json", params=params, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        snippets = []
+        for result in data.get("organic_results", [])[:4]:
+            title = result.get("title", "")
+            snippet = result.get("snippet", "")
+            link = result.get("link", "")
+            snippets.append(f"- **{title}**: {snippet} ([source]({link}))")
+        return "\n".join(snippets) if snippets else "No relevant results found."
     except Exception as e:
-        return f"Failed to retrieve live evidence: {str(e)}"
+        return f"Search failed: {e}"
 
-# --- Professional PDF Document Generation ---
-def create_pdf(text_content):
+def create_pdf(text: str) -> bytes:
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer, pagesize=letter, 
-        rightMargin=54, leftMargin=54, topMargin=54, bottomMargin=54
-    )
-    story = []
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=54, leftMargin=54, topMargin=54, bottomMargin=54)
     styles = getSampleStyleSheet()
-    
-    title_style = ParagraphStyle(
-        'PDFTitle', parent=styles['Heading1'], fontSize=18, leading=22, 
-        textColor=colors.HexColor('#1A365D'), spaceAfter=12, alignment=1
-    )
-    header_style = ParagraphStyle(
-        'PDFHeader', parent=styles['Normal'], fontSize=11, leading=16, 
-        bold=True, textColor=colors.HexColor('#2C3E50'), spaceBefore=14, spaceAfter=6, keepWithNext=True
-    )
-    body_style = ParagraphStyle(
-        'PDFBody', parent=styles['Normal'], fontSize=10, leading=15, 
-        textColor=colors.HexColor('#333333'), spaceAfter=8
-    )
-    
-    story.append(Paragraph("<b>VA COMPENSATION CLAIM STRATEGY BRIEF</b>", title_style))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#1A365D'), spaceBefore=2, spaceAfter=12))
-    
-    lines = text_content.split('\n')
-    for line in lines:
-        if line.strip():
-            if any(line.startswith(prefix) for prefix in ['###', '1.', '2.', '3.', '4.', '5.']):
-                clean_line = line.replace('###', '').strip()
-                story.append(Paragraph(f"<b>{clean_line}</b>", header_style))
-                story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#BDC3C7'), spaceBefore=1, spaceAfter=6))
-            else:
-                story.append(Paragraph(line, body_style))
+    title_style = ParagraphStyle("Title", parent=styles["Heading1"], fontSize=16, textColor=colors.HexColor("#1A365D"), alignment=1, spaceAfter=12)
+    header_style = ParagraphStyle("Header", parent=styles["Heading2"], fontSize=12, textColor=colors.HexColor("#2C3E50"), spaceBefore=12, spaceAfter=6)
+    body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=10, leading=14, spaceAfter=6)
+
+    story = [
+        Paragraph("<b>VA CLAIM STRATEGY BRIEF (SELF-HELP DRAFT)</b>", title_style),
+        HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#1A365D"), spaceAfter=12),
+        Paragraph("<i>This is a self-help organizer document only. It is not a legal filing and does not replace official VA forms or evidence.</i>", body_style),
+        Spacer(1, 12)
+    ]
+
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            story.append(Spacer(1, 6))
+            continue
+        if line.startswith(("1.", "2.", "3.", "4.", "5.", "###")):
+            clean = line.replace("###", "").strip()
+            story.append(Paragraph(f"<b>{clean}</b>", header_style))
         else:
-            story.append(Spacer(1, 4))
-            
+            story.append(Paragraph(line, body_style))
+
+    story.append(Spacer(1, 20))
+    story.append(Paragraph(
+        "<b>DISCLAIMER:</b> This compiled brief is for organizational purposes only. Submit official claims on VA Form 21-526EZ (or online at VA.gov) with supporting medical evidence. This is not legal advice.",
+        body_style
+    ))
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
 
-# 5. Process everything when the button is clicked
-if st.button("🚀 UNLEASH EVIDENCE VALIDATION & GENERATION"):
+# Generation
+if st.button("Generate Claim Summary & PDF", type="primary"):
     if not openai_key:
-        st.error("Please add an OpenAI API key to proceed.")
+        st.error("OpenAI API key required.")
     elif not veteran_story.strip():
-        st.warning("Please type your story in the text box before generating.")
+        st.warning("Please enter your story.")
     else:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            with st.spinner("🔍 Step 1: SerpAPI hunting live VA criteria & peer-reviewed nexus angles..."):
-                live_evidence = search_va_evidence(focused_condition)
-                st.success("Live legal/medical data fetched successfully!")
-                with st.expander("View Retrieved Raw Search Context"):
-                    st.markdown(live_evidence)
-                    
-        with col2:
-            with st.spinner("🤖 Step 2: OpenAI synthesizing facts and formatting claim..."):
-                try:
-                    client = OpenAI(api_key=openai_key)
-                    
-                    user_payload = (
-                        f"VETERAN SERVICE BRANCH: {service_branch if service_branch else 'Not Specified'}\n"
-                        f"DISCHARGE YEAR: {discharge_year if discharge_year else 'Not Specified'}\n"
-                        f"CONDITION TYPE: {focused_condition}\n"
-                        f"DIAGNOSIS STATUS: {q_diagnosed}\n"
-                        f"IN-SERVICE EVENT: {q_service_event}\n"
-                        f"RECORD STATS: {q_records}\n"
-                        f"CONTINUITY: {q_continuity}\n\n"
-                        f"VETERAN'S NARRATIVE:\n{veteran_story}\n\n"
-                        f"LIVE EXTERNAL RESEARCH & CFR CONTEXT:\n{live_evidence}"
-                    )
-                    
-                    system_prompt = (
-                        f"You are a military claims analyst. Synthesize the Veteran's service metrics and narrative with the live "
-                        f"search engine results containing 38 CFR guidelines and peer-reviewed medical data regarding '{focused_condition}'.\n\n"
-                        "Structure your output into five comprehensive sections:\n"
-                        "1. MILITARY PROFILE & MEDICAL EVIDENCE SUMMARY\n"
-                        "2. IN-SERVICE INCIDENT & PRECISE SERVICE NEXUS CORRELATION\n"
-                        "3. CHRONICITY, CONTINUITY OF SYMPTOMS, AND POST-DISCHARGE LIFELONG TIMELINE\n"
-                        "4. OCCUPATIONAL & SOCIAL IMPAIRMENT ANALYSIS (VA RATING GUIDE MATCH)\n"
-                        "5. RELEVANT MEDICAL CITATIONS & 38 CFR REFERENCE LINKS (Utilize the provided search items directly to back up the claim facts)\n\n"
-"Maintain an objective, technical, yet highly supportive legal tone. Explicitly factor in the Service Branch and Discharge Year to construct the structural chronic timeline context. Do not hallucinate data points. "
-"Conclude with a bold disclaimer stating: 'This compiled brief matches observed background evidence and must be submitted on VA Form 21-526EZ alongside clinical evidence records.'"
-)
-response = client.chat.completions.create(
-model='gpt-4o-mini',
-messages=[
-{"role": "system", "content": system_prompt},
-{"role": "user", "content": user_payload}
-],
-temperature=0.15
-)
-output_text = response.choices.message.content
-pdf_data = create_pdf(output_text)
-st.session_state['downloadable_pdf_bytes'] = pdf_data
-st.session_state['downloadable_pdf_name'] = f"Vetted_VA_Claim_Summary_{focused_condition.replace(' ', '_')}.pdf"
-st.session_state['display_output_text'] = output_text
-st.session_state['block_11_data'] = focused_condition
-st.session_state['block_13_data'] = f"Service Connection Event path developed during service timeline with {service_branch if service_branch else 'discharged military units'}. Cross reference validated citations in attached report."
-st.session_state['block_14_data'] = f"Continuity Tracking Status: {q_continuity}. Manifests active occupational degradation markers matching 38 CFR rating guidelines."
-if privacy_mode:
-st.success("Claim package generated! All sensitive inputs successfully purged from active working runtime storage.")
-else:
-st.success("Claim package generated successfully!")
-except Exception as e:
-st.error(f"Something went wrong with the OpenAI integration: {e}")
+        with st.spinner("Searching public VA criteria & medical sources..."):
+            live_evidence = search_va_evidence(focused_condition, serpapi_key)
 
-# 6. Display results and activation download files
+        with st.spinner("Generating structured summary..."):
+            try:
+                client = OpenAI(api_key=openai_key)
+                user_payload = (
+                    f"SERVICE BRANCH: {service_branch or 'Not specified'}\n"
+                    f"DISCHARGE YEAR: {discharge_year or 'Not specified'}\n"
+                    f"CONDITION: {focused_condition}\n"
+                    f"DIAGNOSIS: {q_diagnosed}\n"
+                    f"IN-SERVICE EVENT: {q_service_event}\n"
+                    f"RECORDS: {q_records}\n"
+                    f"CONTINUITY: {q_continuity}\n\n"
+                    f"NARRATIVE:\n{veteran_story}\n\n"
+                    f"SEARCH CONTEXT:\n{live_evidence}"
+                )
+                system_prompt = (
+                    "You are a careful claims organizer assistant (not a lawyer or doctor). "
+                    "Synthesize the veteran's information with the provided search results into a clear, factual draft. "
+                    "Structure exactly as:\n"
+                    "1. MILITARY PROFILE & MEDICAL EVIDENCE SUMMARY\n"
+                    "2. IN-SERVICE INCIDENT & SERVICE CONNECTION NEXUS\n"
+                    "3. CHRONICITY / CONTINUITY OF SYMPTOMS\n"
+                    "4. OCCUPATIONAL & SOCIAL IMPAIRMENT (aligned with general 38 CFR concepts)\n"
+                    "5. RELEVANT PUBLIC CITATIONS & 38 CFR NOTES\n\n"
+                    "Be objective and supportive. Do not invent facts. "
+                    "End with a clear disclaimer that this is a self-help draft only and must be filed on official VA Form 21-526EZ with real evidence."
+                )
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_payload}
+                    ],
+                    temperature=0.2
+                )
+                output_text = response.choices[0].message.content
+                pdf_bytes = create_pdf(output_text)
 
-if 'display_output_text' in st.session_state:
+                st.session_state["pdf_bytes"] = pdf_bytes
+                st.session_state["pdf_name"] = f"VA_Claim_Summary_{focused_condition.replace(' ', '_')[:40]}.pdf"
+                st.session_state["report_text"] = output_text
+                st.session_state["form_preview"] = {
+                    "box11": focused_condition,
+                    "box13": f"Service connection pathway developed during {service_branch or 'military service'}. See attached summary for details and citations.",
+                    "box14": f"Continuity: {q_continuity}. Impacts daily function consistent with claimed condition."
+                }
+                st.success("Summary generated.")
+                if privacy_mode:
+                    st.info("Privacy mode: you can clear the report from session below after downloading.")
+            except Exception as e:
+                st.error(f"Generation failed: {e}")
+
+# Display results
+if "report_text" in st.session_state:
+    st.markdown("---")
+    tab1, tab2 = st.tabs(["Structured Report", "Form Field Preview"])
+
+    with tab1:
+        st.subheader("Draft Summary")
+        st.markdown(st.session_state["report_text"])
+        st.download_button(
+            "Download PDF Summary",
+            data=st.session_state["pdf_bytes"],
+            file_name=st.session_state["pdf_name"],
+            mime="application/pdf"
+        )
+
+    with tab2:
+        st.subheader("Suggested text for VA Form 21-526EZ (manual entry)")
+        st.error("This is only a preview. Enter data yourself on the official form or VA.gov portal.")
+        preview = st.session_state.get("form_preview", {})
+        st.markdown("**Box 11 – Current Disability(ies) Claimed**")
+        st.write(preview.get("box11", ""))
+        st.markdown("**Box 13 – Service Connection Context**")
+        st.write(preview.get("box13", ""))
+        st.markdown("**Box 14 – Chronicity / Impact Notes**")
+        st.write(preview.get("box14", ""))
+
+    if st.button("Clear generated report from session (privacy)"):
+        for key in ["pdf_bytes", "pdf_name", "report_text", "form_preview"]:
+            st.session_state.pop(key, None)
+        st.rerun()
+
 st.markdown("---")
-tab_report, tab_form_preview = st.tabs(["📄 Structured Brief Report", "🗂️ VA Form 21-526EZ Field Preview Box"])
-with tab_report:
-st.subheader("✨ Your Vetted & Sound VA Claim Summary Layout")
-st.markdown(st.session_state['display_output_text'])
-st.download_button(
-label="📥 Download Styled Claim Package PDF",
-data=st.session_state['downloadable_pdf_bytes'],
-file_name=st.session_state['downloadable_pdf_name'],
-mime="application/pdf"
-)
-with tab_form_preview:
-st.subheader("📋 Official VA Form 21-526EZ Data Mapping Preview")
-st.error("⚠️ IMPORTANT: This is a text block layout preview designed to guide manual entry into the official paper or digital VA Form 21-526EZ submission dashboard.")
-b11 = st.session_state.get('block_11_data', '')
-b13 = st.session_state.get('block_13_data', '')
-b14 = st.session_state.get('block_14_data', '')
-st.markdown('', unsafe_html=True)
-st.markdown('SECTION II: CLAIM INFORMATION', unsafe_html=True)
-st.markdown('', unsafe_html=True)
-st.markdown('BOX 11: Current Disability(ies) Claimed', unsafe_html=True)
-st.write(b11)
-st.markdown('', unsafe_html=True)
-st.markdown('', unsafe_html=True)
-st.markdown('BOX 13: Service Connection Context Pathway & Narrative Cross-Reference', unsafe_html=True)
-st.write(b13)
-st.markdown('', unsafe_html=True)
-st.markdown('', unsafe_html=True)
-st.markdown('BOX 14: Chronicity & Clinical Symptom Manifestation / Operational Impact', unsafe_html=True)
-st.write(b14)
-st.markdown('', unsafe_html=True)
-st.markdown('', unsafe_html=True)
+st.caption("Self-help tool only. File official claims at VA.gov or with an accredited representative. Not affiliated with the Department of Veterans Affairs.")
