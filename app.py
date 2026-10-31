@@ -17,6 +17,13 @@ Always verify information and consider working with a free Veterans Service Offi
 File official claims at [VA.gov](https://www.va.gov/disability/file-disability-claim-form-21-526ez/).
 """)
 
+st.info("""
+**File with help — strongly recommended**  
+This tool only organizes a draft.  
+Contact a free Veterans Service Officer (VSO) or VA-accredited attorney/claims agent to review and file your claim.  
+→ [Find help on VA.gov](https://www.va.gov/disability/get-help-filing-claim/)
+""")
+
 # Privacy
 privacy_mode = st.toggle(
     "Privacy mode (clear sensitive data after PDF generation)",
@@ -129,6 +136,11 @@ def create_pdf(text: str) -> bytes:
     story.append(Spacer(1, 20))
     story.append(Paragraph(
         "<b>DISCLAIMER:</b> This compiled brief is for organizational purposes only. Submit official claims on VA Form 21-526EZ (or online at VA.gov) with supporting medical evidence. This is not legal advice.",
+        body_style
+    ))
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(
+        "<b>NEXT STEP:</b> This is a self-help draft only. Contact a free VSO or VA-accredited representative to review your evidence and file the official claim on VA Form 21-526EZ or at VA.gov.",
         body_style
     ))
     doc.build(story)
