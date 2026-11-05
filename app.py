@@ -9,20 +9,7 @@ import io
 
 st.set_page_config(page_title="VA Claim Organizer", page_icon="🇺🇸", layout="wide")
 st.title("🇺🇸 Veteran VA Claim Organizer & Evidence Helper")
-st.warning("""
-**IMPORTANT DISCLAIMER**  
-This is a self-help organizer only. It is **not** legal advice, medical advice, or an accredited representative.  
-It does **not** file claims with the VA.  
-Always verify information and consider working with a free Veterans Service Officer (VSO) or accredited attorney.  
-File official claims at [VA.gov](https://www.va.gov/disability/file-disability-claim-form-21-526ez/).
-""")
-
-st.info("""
-**File with help — strongly recommended**  
-This tool only organizes a draft.  
-Contact a free Veterans Service Officer (VSO) or VA-accredited attorney/claims agent to review and file your claim.  
-→ [Find help on VA.gov](https://www.va.gov/disability/get-help-filing-claim/)
-""")
+st.write("Organize your claim details, pull public criteria, and generate a structured summary PDF.")
 
 # Privacy
 privacy_mode = st.toggle(
@@ -118,7 +105,7 @@ def create_pdf(text: str) -> bytes:
     story = [
         Paragraph("<b>VA CLAIM STRATEGY BRIEF (SELF-HELP DRAFT)</b>", title_style),
         HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#1A365D"), spaceAfter=12),
-        Paragraph("<i>This is a self-help organizer document only. It is not a legal filing and does not replace official VA forms or evidence.</i>", body_style),
+        Paragraph("<i>This is a self-help organizer document only.</i>", body_style),
         Spacer(1, 12)
     ]
 
@@ -134,15 +121,6 @@ def create_pdf(text: str) -> bytes:
             story.append(Paragraph(line, body_style))
 
     story.append(Spacer(1, 20))
-    story.append(Paragraph(
-        "<b>DISCLAIMER:</b> This compiled brief is for organizational purposes only. Submit official claims on VA Form 21-526EZ (or online at VA.gov) with supporting medical evidence. This is not legal advice.",
-        body_style
-    ))
-    story.append(Spacer(1, 12))
-    story.append(Paragraph(
-        "<b>NEXT STEP:</b> This is a self-help draft only. Contact a free VSO or VA-accredited representative to review your evidence and file the official claim on VA Form 21-526EZ or at VA.gov.",
-        body_style
-    ))
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
@@ -172,7 +150,7 @@ if st.button("Generate Claim Summary & PDF", type="primary"):
                     f"SEARCH CONTEXT:\n{live_evidence}"
                 )
                 system_prompt = (
-                    "You are a careful claims organizer assistant (not a lawyer or doctor). "
+                    "You are a careful claims organizer assistant. "
                     "Synthesize the veteran's information with the provided search results into a clear, factual draft. "
                     "Structure exactly as:\n"
                     "1. MILITARY PROFILE & MEDICAL EVIDENCE SUMMARY\n"
@@ -180,8 +158,7 @@ if st.button("Generate Claim Summary & PDF", type="primary"):
                     "3. CHRONICITY / CONTINUITY OF SYMPTOMS\n"
                     "4. OCCUPATIONAL & SOCIAL IMPAIRMENT (aligned with general 38 CFR concepts)\n"
                     "5. RELEVANT PUBLIC CITATIONS & 38 CFR NOTES\n\n"
-                    "Be objective and supportive. Do not invent facts. "
-                    "End with a clear disclaimer that this is a self-help draft only and must be filed on official VA Form 21-526EZ with real evidence."
+                    "Be objective and supportive. Do not invent facts."
                 )
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -225,7 +202,6 @@ if "report_text" in st.session_state:
 
     with tab2:
         st.subheader("Suggested text for VA Form 21-526EZ (manual entry)")
-        st.error("This is only a preview. Enter data yourself on the official form or VA.gov portal.")
         preview = st.session_state.get("form_preview", {})
         st.markdown("**Box 11 – Current Disability(ies) Claimed**")
         st.write(preview.get("box11", ""))
@@ -240,4 +216,4 @@ if "report_text" in st.session_state:
         st.rerun()
 
 st.markdown("---")
-st.caption("Self-help tool only. File official claims at VA.gov or with an accredited representative. Not affiliated with the Department of Veterans Affairs.")
+st.caption("Self-help organizer tool. Not affiliated with the Department of Veterans Affairs.")
