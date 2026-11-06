@@ -191,7 +191,7 @@ if "report_text" in st.session_state:
     tab1, tab2 = st.tabs(["Structured Report", "Form Field Preview"])
 
     with tab1:
-        st.subheader("Draft Summary")
+        st.subheader("VA Benefits Summary")
         st.markdown(st.session_state["report_text"])
         st.download_button(
             "Download PDF Summary",
