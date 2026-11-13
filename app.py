@@ -11,6 +11,19 @@ from datetime import date
 st.set_page_config(page_title="VA Support Tools", page_icon="🇺🇸", layout="wide")
 st.title("🇺🇸 Veteran Support Tools")
 
+# Always show both key fields in the sidebar
+st.sidebar.header("API Keys")
+openai_key = st.sidebar.text_input(
+    "OpenAI API Key",
+    type="password",
+    value=st.secrets.get("OPENAI_API_KEY", "")
+)
+serpapi_key = st.sidebar.text_input(
+    "SerpAPI Key",
+    type="password",
+    value=st.secrets.get("SERPAPI_API_KEY", "")
+)
+
 # Mode selector
 mode = st.radio(
     "Select tool:",
@@ -18,15 +31,6 @@ mode = st.radio(
     horizontal=True,
     index=0
 )
-
-# Load keys (supports flat secrets.toml)
-openai_key = st.secrets.get("OPENAI_API_KEY")
-serpapi_key = st.secrets.get("SERPAPI_API_KEY")
-
-if not openai_key:
-    openai_key = st.sidebar.text_input("OpenAI API Key", type="password")
-if not serpapi_key:
-    serpapi_key = st.sidebar.text_input("SerpAPI Key", type="password")
 
 # ============================================================
 # MODE 1: Veteran Claim Organizer
