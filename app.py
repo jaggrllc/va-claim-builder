@@ -8,10 +8,10 @@ from reportlab.lib import colors
 import io
 from datetime import date
 
-st.set_page_config(page_title="VA Claim Organizer", page_icon="🇺🇸", layout="wide")
+st.set_page_config(page_title="VA Support Tools", page_icon="🇺🇸", layout="wide")
 st.title("🇺🇸 Veteran Support Tools")
 
-# Mode selector — keeps the two features completely separate
+# Mode selector
 mode = st.radio(
     "Select tool:",
     ["Veteran Claim Organizer", "Survivor Senator Letter"],
@@ -19,27 +19,27 @@ mode = st.radio(
     index=0
 )
 
+# Load keys (supports flat secrets.toml)
+openai_key = st.secrets.get("OPENAI_API_KEY")
+serpapi_key = st.secrets.get("SERPAPI_API_KEY")
+
+if not openai_key:
+    openai_key = st.sidebar.text_input("OpenAI API Key", type="password")
+if not serpapi_key:
+    serpapi_key = st.sidebar.text_input("SerpAPI Key", type="password")
+
 # ============================================================
-# MODE 1: Existing Veteran Claim Organizer (unchanged)
+# MODE 1: Veteran Claim Organizer
 # ============================================================
 if mode == "Veteran Claim Organizer":
     st.write("Organize your claim details, pull public criteria, and generate a structured summary PDF.")
 
     privacy_mode = st.toggle(
         "Privacy mode (clear sensitive data after PDF generation)",
-        value=True,
-        help="Clears the generated report from session after you download or clear it."
+        value=True
     )
     if privacy_mode:
         st.info("Privacy mode on. Sensitive session data can be cleared after generation.")
-
-    if "openai" in st.secrets and "serpapi" in st.secrets:
-        openai_key = st.secrets["openai"]["api_key"]
-        serpapi_key = st.secrets["serpapi"]["api_key"]
-    else:
-        st.sidebar.header("API Keys (or use Streamlit secrets)")
-        openai_key = st.sidebar.text_input("OpenAI API Key", type="password")
-        serpapi_key = st.sidebar.text_input("SerpAPI Key", type="password")
 
     claim_type = st.selectbox(
         "1. Condition / claim type",
@@ -56,14 +56,14 @@ if mode == "Veteran Claim Organizer":
         ]
     )
     if claim_type == "Other / Not Listed":
-        focused_condition = st.text_input("Specify condition", placeholder="e.g., Chronic Fatigue Syndrome") or "unspecified condition"
+        focused_condition = st.text_input("Specify condition") or "unspecified condition"
     else:
         focused_condition = claim_type
 
     st.subheader("Military Background")
     col1, col2 = st.columns(2)
-    service_branch = col1.text_input("Service Branch", placeholder="Army, Navy, Air Force, Marines, Coast Guard, Space Force")
-    discharge_year = col2.text_input("Discharge Year", placeholder="e.g. 2018")
+    service_branch = col1.text_input("Service Branch")
+    discharge_year = col2.text_input("Discharge Year")
 
     st.subheader("Guided Checklist")
     q_diagnosed = st.radio("Official diagnosis by a doctor?", ["Yes", "No, but symptoms present", "Scheduling evaluation"])
@@ -73,7 +73,6 @@ if mode == "Veteran Claim Organizer":
 
     veteran_story = st.text_area(
         f"Your personal story about {focused_condition}",
-        placeholder="Describe what happened in service, your job/MOS, symptoms then and now, and how it limits work or daily life...",
         height=160
     )
 
@@ -128,7 +127,6 @@ if mode == "Veteran Claim Organizer":
             else:
                 story.append(Paragraph(line, body_style))
 
-        story.append(Spacer(1, 20))
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
@@ -187,8 +185,6 @@ if mode == "Veteran Claim Organizer":
                         "box14": f"Continuity: {q_continuity}. Impacts daily function consistent with claimed condition."
                     }
                     st.success("Summary generated.")
-                    if privacy_mode:
-                        st.info("Privacy mode: you can clear the report from session below after downloading.")
                 except Exception as e:
                     st.error(f"Generation failed: {e}")
 
@@ -216,22 +212,17 @@ if mode == "Veteran Claim Organizer":
             st.markdown("**Box 14 – Chronicity / Impact Notes**")
             st.write(preview.get("box14", ""))
 
-        if st.button("Clear generated report from session (privacy)"):
+        if st.button("Clear generated report from session"):
             for key in ["pdf_bytes", "pdf_name", "report_text", "form_preview"]:
                 st.session_state.pop(key, None)
             st.rerun()
 
 # ============================================================
-# MODE 2: Completely separate Survivor Senator Letter tool
+# MODE 2: Survivor Senator Letter (with VA language feature)
 # ============================================================
 elif mode == "Survivor Senator Letter":
     st.subheader("Letter to U.S. Senators — Surviving Family of 100% Service-Connected Veteran")
-    st.write("Compose a formal letter on behalf of a surviving widow, child, or dependent of a Veteran who was rated 100% service-connected.")
-
-    if "openai" in st.secrets:
-        openai_key = st.secrets["openai"]["api_key"]
-    else:
-        openai_key = st.sidebar.text_input("OpenAI API Key", type="password", key="openai_letter")
+    st.write("Compose a formal letter enriched with authentic VA language and terminology.")
 
     st.markdown("### Your Information (Survivor)")
     col_a, col_b = st.columns(2)
@@ -244,25 +235,57 @@ elif mode == "Survivor Senator Letter":
     st.markdown("### Veteran Information")
     vet_name = st.text_input("Veteran’s Full Name")
     vet_branch = st.text_input("Veteran’s Branch of Service")
-    vet_dates = st.text_input("Service Dates (approximate is fine)", placeholder="e.g., 1995–2015")
-    rating_details = st.text_area("100% Service-Connected Rating Details (brief)", height=80, placeholder="e.g., 100% for PTSD, rated permanent and total since 2018")
+    vet_dates = st.text_input("Service Dates (approximate is fine)")
+    rating_details = st.text_area("100% Service-Connected Rating Details (brief)", height=80)
 
     st.markdown("### Purpose of the Letter")
-    letter_purpose = st.text_area(
-        "What would you like to ask your Senators to do or consider?",
-        height=120,
-        placeholder="Examples: Request recognition of the Veteran’s service, support for survivor benefits, ask for assistance with a specific issue, or urge support for relevant legislation..."
-    )
-    senator_names = st.text_input("Senator Names (optional — leave blank for “My U.S. Senators”)", placeholder="e.g., Senator Jane Doe and Senator John Smith")
+    letter_purpose = st.text_area("What would you like to ask your Senators to do or consider?", height=120)
+    senator_names = st.text_input("Senator Names (optional)", placeholder="Leave blank for “My U.S. Senators”")
 
-    def create_letter_pdf(letter_text: str, survivor: str) -> bytes:
+    def search_va_language(query_context: str, api_key: str) -> str:
+        if not api_key:
+            return "No SerpAPI key provided."
+        params = {
+            "engine": "google",
+            "q": f"VA official language terminology survivor benefits 100% service-connected permanent total {query_context}",
+            "hl": "en",
+            "gl": "us",
+            "api_key": api_key,
+            "num": 6
+        }
+        try:
+            r = requests.get("https://serpapi.com/search.json", params=params, timeout=15)
+            r.raise_for_status()
+            data = r.json()
+            snippets = []
+            for result in data.get("organic_results", [])[:5]:
+                title = result.get("title", "")
+                snippet = result.get("snippet", "")
+                snippets.append(f"- {title}: {snippet}")
+            return "\n".join(snippets) if snippets else "No additional VA language found."
+        except Exception as e:
+            return f"VA language search unavailable: {e}"
+
+    def create_letter_pdf(letter_text: str) -> bytes:
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
         styles = getSampleStyleSheet()
-        body = ParagraphStyle("Body", parent=styles["Normal"], fontSize=11, leading=16, spaceAfter=10)
-        story = [
-            Paragraph(letter_text.replace("\n", "<br/>"), body)
-        ]
+        body_style = ParagraphStyle(
+            "LetterBody",
+            parent=styles["Normal"],
+            fontSize=11,
+            leading=16,
+            spaceAfter=12
+        )
+        safe_text = (letter_text or "").replace("\n", "<br/>")
+        story = [Paragraph(safe_text, body_style)]
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
@@ -274,9 +297,13 @@ elif mode == "Survivor Senator Letter":
             st.warning("Please fill in at least your name, the Veteran’s name, and the purpose of the letter.")
         else:
             try:
+                with st.spinner("Gathering relevant VA language and terminology..."):
+                    va_context = search_va_language(f"{rating_details} {letter_purpose}", serpapi_key)
+
                 client = OpenAI(api_key=openai_key)
                 today = date.today().strftime("%B %d, %Y")
-                senators = senator_names.strip() or "My U.S. Senators"
+                senators = senator_names.strip() if senator_names else "My U.S. Senators"
+
                 prompt = (
                     f"Write a formal, respectful, and professional letter dated {today} from {survivor_name} "
                     f"({relationship} of the late Veteran {vet_name}) to {senators}.\n\n"
@@ -287,38 +314,43 @@ elif mode == "Survivor Senator Letter":
                     f"Veteran background: {vet_name}, {vet_branch or 'U.S. Armed Forces'}, served {vet_dates or 'during active duty'}. "
                     f"Rated 100% service-connected ({rating_details or 'details not specified'}).\n\n"
                     f"Purpose of the letter: {letter_purpose}\n\n"
-                    "Format the letter with:\n"
-                    "- Proper date and sender address block at the top\n"
-                    "- Formal salutation\n"
-                    "- Clear, concise body paragraphs\n"
-                    "- Respectful closing and signature block\n"
-                    "Keep the tone dignified and factual. Do not invent details that were not provided."
+                    f"Relevant VA language, terminology, and official phrasing to incorporate naturally:\n{va_context}\n\n"
+                    "Instructions:\n"
+                    "- Format with proper date and sender address block, formal salutation, clear body paragraphs, and respectful closing.\n"
+                    "- Inundate the letter with authentic VA language and terminology from the provided context whenever it fits naturally.\n"
+                    "- Keep the tone dignified and factual. Do not invent details."
                 )
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3
-                )
-                letter = response.choices[0].message.content
+
+                with st.spinner("Generating letter with VA language..."):
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.3
+                    )
+                    letter = response.choices[0].message.content or ""
+
                 st.session_state["senator_letter"] = letter
-                st.session_state["letter_pdf"] = create_letter_pdf(letter, survivor_name)
+                st.session_state["letter_pdf"] = create_letter_pdf(letter)
                 st.session_state["letter_filename"] = f"Senator_Letter_{survivor_name.replace(' ', '_')}.pdf"
-                st.success("Letter generated.")
+                st.session_state["va_context_used"] = va_context
+                st.success("Letter generated with VA language context.")
             except Exception as e:
-                st.error(f"Could not generate letter: {e}")
+                st.error(f"Could not generate letter: {type(e).__name__}: {e}")
 
     if "senator_letter" in st.session_state:
         st.markdown("---")
         st.subheader("Your Letter")
-        st.text_area("Letter text (copy if desired)", value=st.session_state["senator_letter"], height=400)
+        st.text_area("Letter text", value=st.session_state["senator_letter"], height=400)
         st.download_button(
             "Download Letter as PDF",
             data=st.session_state["letter_pdf"],
             file_name=st.session_state["letter_filename"],
             mime="application/pdf"
         )
+        with st.expander("View VA language context used"):
+            st.text(st.session_state.get("va_context_used", "None"))
         if st.button("Clear letter"):
-            for k in ["senator_letter", "letter_pdf", "letter_filename"]:
+            for k in ["senator_letter", "letter_pdf", "letter_filename", "va_context_used"]:
                 st.session_state.pop(k, None)
             st.rerun()
 
