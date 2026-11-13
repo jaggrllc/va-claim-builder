@@ -367,5 +367,3 @@ elif mode == "Survivor Senator Letter":
 
 st.markdown("---")
 st.caption("Self-help organizer tools. Not affiliated with the Department of Veterans Affairs.")
-
-Ask anythi
