@@ -1,7 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 import requests
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter as letter_pagesize
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -107,7 +107,14 @@ if mode == "Veteran Claim Organizer":
 
     def create_pdf(text: str) -> bytes:
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=54, leftMargin=54, topMargin=54, bottomMargin=54)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter_pagesize,
+            rightMargin=54,
+            leftMargin=54,
+            topMargin=54,
+            bottomMargin=54
+        )
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle("Title", parent=styles["Heading1"], fontSize=16, textColor=colors.HexColor("#1A365D"), alignment=1, spaceAfter=12)
         header_style = ParagraphStyle("Header", parent=styles["Heading2"], fontSize=12, textColor=colors.HexColor("#2C3E50"), spaceBefore=12, spaceAfter=6)
@@ -274,7 +281,7 @@ elif mode == "Survivor Senator Letter":
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=letter,
+            pagesize=letter_pagesize,
             rightMargin=72,
             leftMargin=72,
             topMargin=72,
@@ -331,10 +338,10 @@ elif mode == "Survivor Senator Letter":
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.3
                     )
-                    letter = response.choices[0].message.content or ""
+                    letter_content = response.choices[0].message.content or ""
 
-                st.session_state["senator_letter"] = letter
-                st.session_state["letter_pdf"] = create_letter_pdf(letter)
+                st.session_state["senator_letter"] = letter_content
+                st.session_state["letter_pdf"] = create_letter_pdf(letter_content)
                 st.session_state["letter_filename"] = f"Senator_Letter_{survivor_name.replace(' ', '_')}.pdf"
                 st.session_state["va_context_used"] = va_context
                 st.success("Letter generated with VA language context.")
@@ -360,3 +367,5 @@ elif mode == "Survivor Senator Letter":
 
 st.markdown("---")
 st.caption("Self-help organizer tools. Not affiliated with the Department of Veterans Affairs.")
+
+Ask anythi
